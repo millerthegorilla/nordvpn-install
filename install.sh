@@ -159,6 +159,8 @@ install_dnf() {
 # Install NordVPN for rpm-ostree systems
 # (with the rpm-ostree package manager)
 install_rpm_ostree() {
+    DEPENDENCIES="iptables-legacy iptables-legacy-libs iptables-libs libnetfilter_conntrack libnfnetlink"
+    TMP_INSTALL_DIR="/tmp/nordvpn_install/"
     if check_cmd rpm-ostree; then
         if ! check_cmd curl; then
             echo "Curl is needed to proceed with the installation"
@@ -175,7 +177,8 @@ install_rpm_ostree() {
         if [ ! -f "${REPO_URL_RPM}" ]; then
             repo="${repo}/${ARCH}"
         fi
-
+	mkdir ${TMP_INSTALL_DIR}
+        pushd ${TMP_INSTALL_DIR} &>/dev/null
         $SUDO curl ${PUB_KEY} -o /etc/pki/rpm-gpg/RPM-GPG-KEY-nordvpn &>/dev/null
         repo="${REPO_URL_RPM}"
         if [ ! -f "${REPO_URL_RPM}" ]; then
@@ -186,18 +189,18 @@ install_rpm_ostree() {
         toolbox run sudo rpm --import RPM-GPG-KEY-nordvpn &>/dev/null
         rm RPM-GPG-KEY-nordvpn
         toolbox run sudo dnf download nordvpn &>/dev/null
-	    rpm_file=$(echo $(find . 2>/dev/null -name "nordvpn*rpm")) &>/dev/null
-  	    mv ${rpm_file} /tmp
-	    repo_file=$(toolbox run find /etc/yum.repos.d/ -name "*repo.nordvpn.com*")
-	    pushd /tmp &>/dev/null
-        toolbox run cp ${repo_file} /tmp
-        toolbox run sudo rm ${repo_file}
+	rpm_file=$(echo $(find . 2>/dev/null -name "nordvpn*rpm")) &>/dev/null
+  	mv ${rpm_file} ${TMP_INSTALL_DIR}
+	repo_file=$(toolbox run find /etc/yum.repos.d/ -name "*repo.nordvpn.com*")
+        toolbox run mv ${repo_file} ${TMP_INSTALL_DIR}
         repo_file=${repo_file##*/}
-        $SUDO mv /tmp/${repo_file} /etc/yum.repos.d/     
-        $SUDO rpm-ostree $install_opts install nordvpn
+        $SUDO mv ${TMP_INSTALL_DIR}${repo_file} /etc/yum.repos.d/     
+        $SUDO rpm-ostree install --idempotent ${DEPENDENCIES}
+	$SUDO rpm-ostree $install_opts install nordvpn
         $SUDO rpm2cpio ${rpm_file} | $SUDO cpio -idmv &>/dev/null
         $SUDO rm ${rpm_file}
         popd
+	rm -rf ${TMP_INSTALL_DIR}
         exit
     fi
 }
