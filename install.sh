@@ -165,6 +165,7 @@ install_dnf() {
 install_rpm_ostree() {
     DEPENDENCIES="iptables-legacy iptables-legacy-libs iptables-libs libnetfilter_conntrack libnfnetlink"
     TMP_INSTALL_DIR="/tmp/nordvpn_install/"
+    TOOLBOX_NAME=$(uuidgen)
     if check_cmd rpm-ostree; then
         if ! check_cmd curl; then
             echo "Curl is needed to proceed with the installation"
@@ -191,16 +192,16 @@ install_rpm_ostree() {
             repo="${repo}/${ARCH}"
         fi
 	source /etc/os-release
-        if [[ $(toolbox list -c |grep -c fedora-toolbox-41) -eq 0 ]]; then toolbox create -y; fi
-	toolbox run sudo dnf config-manager addrepo --set=baseurl="${repo}" --overwrite
+        if [[ $(toolbox list -c |grep -c ${TOOLBOX_NAME}) -eq 0 ]]; then toolbox create -y ${TOOLBOX_NAME}; fi
+	toolbox --container ${TOOLBOX_NAME} run sudo dnf config-manager addrepo --set=baseurl="${repo}" --overwrite
 	$SUDO cp /etc/pki/rpm-gpg/RPM-GPG-KEY-nordvpn . &>/dev/null
-        toolbox run sudo rpm --import RPM-GPG-KEY-nordvpn &>/dev/null
+        toolbox --container ${TOOLBOX_NAME} run sudo rpm --import RPM-GPG-KEY-nordvpn &>/dev/null
         rm -f RPM-GPG-KEY-nordvpn
-        toolbox run sudo dnf download nordvpn &>/dev/null
+        toolbox --container ${TOOLBOX_NAME} run sudo dnf download nordvpn &>/dev/null
         rpm_file=$(echo $(find . -maxdepth 1 -name "nordvpn*rpm")) &>/dev/null
   	# mv ${rpm_file} ${TMP_INSTALL_DIR}
-	repo_file=$(toolbox run find /etc/yum.repos.d/ -name "*repo.nordvpn.com*")
-	toolbox run sudo mv ${repo_file} ${TMP_INSTALL_DIR}
+	repo_file=$(toolbox --container ${TOOLBOX_NAME} run find /etc/yum.repos.d/ -name "*repo.nordvpn.com*")
+	toolbox --container ${TOOLBOX_NAME} run sudo mv ${repo_file} ${TMP_INSTALL_DIR}
         repo_file=${repo_file##*/}
 	$SUDO mv ${TMP_INSTALL_DIR}${repo_file} /etc/yum.repos.d/     
         $SUDO rpm-ostree install --idempotent --allow-inactive ${DEPENDENCIES}
@@ -209,8 +210,7 @@ install_rpm_ostree() {
         $SUDO rm ${rpm_file}
         popd
 	rm -rf ${TMP_INSTALL_DIR}
-        # toolbox rm fedora-toolbox-${VERSION_ID}
-        # toolbox rmi fedora-toolbox:${VERSION_ID}
+        toolbox rm ${TOOLBOX_NAME}
 	exit
     fi
 }
