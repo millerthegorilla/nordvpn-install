@@ -166,12 +166,12 @@ install_rpm_ostree() {
     DEPENDENCIES="iptables-legacy iptables-legacy-libs iptables-libs libnetfilter_conntrack libnfnetlink"
     TMP_INSTALL_DIR="/tmp/nordvpn_install/"
     TOOLBOX_NAME=$(uuidgen)
-    if check_cmd rpm-ostree; then
-        if ! check_cmd curl; then
+    if check_cmd rpm-ostree &> /dev/null; then
+        if ! check_cmd curl &> /dev/null; then
             echo "Curl is needed to proceed with the installation"
             exit 1
         fi
-        if ! check_cmd toolbox; then
+        if ! check_cmd toolbox &> /dev/null; then
             echo "the user of this script must be able to create and enter a toolbox to proceed"
             exit 1
         fi
@@ -191,8 +191,7 @@ install_rpm_ostree() {
         if [ ! -f "${REPO_URL_RPM}" ]; then
             repo="${repo}/${ARCH}"
         fi
-	source /etc/os-release
-        if [[ $(toolbox list -c |grep -c ${TOOLBOX_NAME}) -eq 0 ]]; then toolbox create -y ${TOOLBOX_NAME}; fi
+        if [[ $(toolbox list -c |grep -c ${TOOLBOX_NAME}) -eq 0 ]]; then toolbox create -y ${TOOLBOX_NAME} &> /dev/null; fi
 	toolbox --container ${TOOLBOX_NAME} run sudo dnf config-manager addrepo --set=baseurl="${repo}" --overwrite
 	$SUDO cp /etc/pki/rpm-gpg/RPM-GPG-KEY-nordvpn . &>/dev/null
         toolbox --container ${TOOLBOX_NAME} run sudo rpm --import RPM-GPG-KEY-nordvpn &>/dev/null
@@ -210,6 +209,7 @@ install_rpm_ostree() {
         $SUDO rm ${rpm_file}
         popd
 	rm -rf ${TMP_INSTALL_DIR}
+        podman stop ${TOOLBOX_NAME}
         toolbox rm ${TOOLBOX_NAME}
 	exit
     fi
