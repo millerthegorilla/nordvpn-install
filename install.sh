@@ -19,6 +19,10 @@ REPO_PATH_DEB=/deb/nordvpn/debian
 REPO_PATH_RPM=/yum/nordvpn/centos
 RELEASE="stable main"
 ASSUME_YES=false
+# set specific version of nordvpn for rpm-ostree install
+# leave it emptu string to install latest version
+# should be eg "-3.18.5" to install package nordvpn-3.18.5
+NORD_VERSION="-3.18.5"
 # Parse command line arguments. Available arguments are:
 # -n                Non-interactive mode. With this flag present, 'assume yes' or 
 #                   'non-interactive' flags will be passed when installing packages.
@@ -172,10 +176,12 @@ install_rpm_ostree() {
         fi
         get_install_opts_for_rpm_ostree
         install_opts="$RETVAL"
-        
         repo="${REPO_URL_RPM}"
         if [ ! -f "${REPO_URL_RPM}" ]; then
             repo="${repo}/${ARCH}"
+        fi
+	if [ -e ${TMP_INSTALL_DIR} ]; then
+            $SUDO rm -rf ${TMP_INSTALL_DIR}
         fi
 	mkdir ${TMP_INSTALL_DIR}
         pushd ${TMP_INSTALL_DIR} &>/dev/null
@@ -184,24 +190,28 @@ install_rpm_ostree() {
         if [ ! -f "${REPO_URL_RPM}" ]; then
             repo="${repo}/${ARCH}"
         fi
-        toolbox run sudo dnf config-manager --add-repo "${repo}"
-        $SUDO cp /etc/pki/rpm-gpg/RPM-GPG-KEY-nordvpn . &>/dev/null
+	source /etc/os-release
+        if [[ $(toolbox list -c |grep -c fedora-toolbox-41) -eq 0 ]]; then toolbox create -y; fi
+	toolbox run sudo dnf config-manager addrepo --set=baseurl="${repo}" --overwrite
+	$SUDO cp /etc/pki/rpm-gpg/RPM-GPG-KEY-nordvpn . &>/dev/null
         toolbox run sudo rpm --import RPM-GPG-KEY-nordvpn &>/dev/null
-        rm RPM-GPG-KEY-nordvpn
+        rm -f RPM-GPG-KEY-nordvpn
         toolbox run sudo dnf download nordvpn &>/dev/null
-	rpm_file=$(echo $(find . 2>/dev/null -name "nordvpn*rpm")) &>/dev/null
-  	mv ${rpm_file} ${TMP_INSTALL_DIR}
+        rpm_file=$(echo $(find . -maxdepth 1 -name "nordvpn*rpm")) &>/dev/null
+  	# mv ${rpm_file} ${TMP_INSTALL_DIR}
 	repo_file=$(toolbox run find /etc/yum.repos.d/ -name "*repo.nordvpn.com*")
-        toolbox run mv ${repo_file} ${TMP_INSTALL_DIR}
+	toolbox run sudo mv ${repo_file} ${TMP_INSTALL_DIR}
         repo_file=${repo_file##*/}
-        $SUDO mv ${TMP_INSTALL_DIR}${repo_file} /etc/yum.repos.d/     
-        $SUDO rpm-ostree install --idempotent ${DEPENDENCIES}
-	$SUDO rpm-ostree $install_opts install nordvpn
+	$SUDO mv ${TMP_INSTALL_DIR}${repo_file} /etc/yum.repos.d/     
+        $SUDO rpm-ostree install --idempotent --allow-inactive ${DEPENDENCIES}
+	$SUDO rpm-ostree $install_opts install --idempotent nordvpn${NORD_VERSION}
         $SUDO rpm2cpio ${rpm_file} | $SUDO cpio -idmv &>/dev/null
         $SUDO rm ${rpm_file}
         popd
 	rm -rf ${TMP_INSTALL_DIR}
-        exit
+        # toolbox rm fedora-toolbox-${VERSION_ID}
+        # toolbox rmi fedora-toolbox:${VERSION_ID}
+	exit
     fi
 }
 
