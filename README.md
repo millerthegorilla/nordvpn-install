@@ -8,6 +8,8 @@ Dependencies are installed, and unfortunately the --idempotent flag to the rpm-o
  
 The nordvpn rpm client does not install on Silverblue correctly as the rpm package contains files in locations that are immutable on Silverblue.  So, the install adds the repo, and the key manually, and then installs the package and then uses rpm2cpio to unpack the rpm so that the correct nordvpn file structure is created.  This is, of course, a hack, but it works well.
 
-The script may probably be buggy as I haven't tested it properly yet, but it has worked for me.
+The script may probably be buggy as I haven't tested it properly yet, but it has worked for me.  It is actually the actual nordvpn script as provided, so it should work for other distros as well.
 
-MIT License attribution etc, and usual disclaimer -  USE AT OWN RISK!!!  (but should work ok)...
+MIT License - attribution etc although it is actually nordpvn's original script edited, so whatever license they publish under...
+
+Usual disclaimer -  USE AT OWN RISK!!!  (but should work ok)...
